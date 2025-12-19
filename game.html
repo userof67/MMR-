@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Quest: The 50 Trials</title>
+    <style>
+        :root {
+            --bg: #050505;
+            --panel: #111;
+            --primary: #6d28d9; /* Deep Purple */
+            --accent: #d946ef; /* Neon Pink */
+            --gold: #fbbf24;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --text: #f1f5f9;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Courier New', Courier, monospace; /* Matrix/Hacker vibe */
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HUD */
+        .hud {
+            background: rgba(20, 20, 20, 0.95);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary);
+            height: 90px;
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        .player-stats { display: flex; flex-direction: column; }
+        .turn-label { font-size: 0.8rem; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+        .player-name { font-size: 1.4rem; font-weight: bold; color: white; text-shadow: 0 0 5px white; }
+        .bars { display: flex; gap: 20px; font-size: 1.2rem; margin-top: 5px; }
+        
+        /* ARENA */
+        .arena {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: radial-gradient(circle at center, #1a0b2e 0%, #000 100%);
+        }
+
+        .enemy {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.2));
+            animation: float 3s infinite ease-in-out;
+            transition: all 0.5s;
+        }
+        
+        .enemy.boss { 
+            font-size: 8rem; 
+            filter: drop-shadow(0 0 40px var(--danger)); 
+            animation: bossPulse 2s infinite;
+        }
+
+        .question-box {
+            background: rgba(0,0,0,0.8);
+            padding: 1.5rem;
+            border-radius: 4px;
+            width: 95%;
+            max-width: 700px;
+            text-align: center;
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 20px rgba(109, 40, 217, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+
+        .category-label {
+            color: #888;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+        }
+
+        .q-text { font-size: 1.3rem; margin-bottom: 1.5rem; line-height: 1.4; font-weight: bold; }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+        }
+
+        button {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--primary);
+            color: white;
+            padding: 1rem;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        button:active { transform: scale(0.95); }
+        button:disabled { opacity: 0.7; cursor: not-allowed; }
+        
+        /* SHOP BUTTON */
+        .shop-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: var(--gold);
+            color: black;
+            border: 2px solid white;
+            box-shadow: 0 0 15px var(--gold);
+            z-index: 50;
+            font-weight: 900;
+        }
+
+        /* MODALS */
+        .modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal.active { display: flex; }
+
+        .shop-card {
+            background: #111;
+            width: 90%;
+            max-width: 400px;
+            padding: 20px;
+            border: 2px solid var(--gold);
+            box-shadow: 0 0 30px rgba(251, 191, 36, 0.2);
+        }
+
+        .shop-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+
+        /* ANIMATIONS */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes bossPulse { 0% { transform: scale(1); filter: drop-shadow(0 0 20px red); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 50px red); } 100% { transform: scale(1); filter: drop-shadow(0 0 20px red); } }
+        .shake { animation: shake 0.4s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="hud">
+        <div class="player-stats">
+            <span class="turn-label" id="turn-label">PLAYER 1</span>
+            <span class="player-name" id="p-name">Loading...</span>
+            <div class="bars">
+                <span style="color:var(--danger)">HP: <span id="p-hp">100</span></span>
+                <span style="color:var(--gold); margin-left: 15px;">$: <span id="p-gold">0</span></span>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.8rem; color: #888; letter-spacing: 2px;">TRIAL</div>
+            <div style="font-size: 2rem; font-weight: bold; color: var(--accent);" id="level-num">1</div>
+            <div style="font-size: 0.8rem; color: #666;">/ 50</div>
+        </div>
+    </div>
+
+    <div class="arena" id="arena">
+        <div class="enemy" id="enemy-icon">💀</div>
+        <div style="margin-bottom: 20px; color: var(--danger); font-weight: bold; letter-spacing: 2px; font-size: 1.2rem;" id="enemy-name">TARGET</div>
+
+        <div class="question-box">
+            <div class="category-label" id="q-cat">Probability</div>
+            <div class="q-text" id="q-text">Loading...</div>
+            <div class="options-grid" id="options"></div>
+        </div>
+    </div>
+
+    <button class="shop-btn" onclick="game.toggleShop()">🛒 BLACK MARKET</button>
+
+    <div class="modal" id="shop-modal">
+        <div class="shop-card">
+            <h2 style="color:var(--gold); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">BLACK MARKET</h2>
+            <p style="color:#888;">Customer: <strong id="shop-p-name" style="color:white">Player</strong></p>
+            <p style="color:#888;">Credits: <span id="shop-p-gold" style="color:var(--gold)">0</span></p>
+            
+            <div class="shop-row">
+                <div>
+                    <div style="color: var(--success); font-weight: bold;">Stimpack (+30 HP)</div>
+                    <small style="color:#666">Recover health</small>
+                </div>
+                <button style="background:#111; color: var(--success); border-color: var(--success); padding: 5px 15px;" onclick="game.buy('heal')">$50</button>
+            </div>
+
+            <div class="shop-row">
+                <div>
+                    <div style="color: var(--primary); font-weight: bold;">Force Field</div>
+                    <small style="color:#666">Blocks next hit</small>
+                </div>
+                <button style="background:#111; color: var(--primary); border-color: var(--primary); padding: 5px 15px;" onclick="game.buy('shield')">$100</button>
+            </div>
+
+            <button style="width:100%; margin-top:10px; background: #333; border: none;" onclick="game.toggleShop()">LEAVE</button>
+        </div>
+    </div>
+
+    <div class="modal" id="end-modal">
+        <h1 style="font-size: 3rem; margin-bottom: 10px; color: var(--danger);">TERMINATED</h1>
+        <div id="scores" style="text-align: left; background: #111; padding: 20px; border: 1px solid #333; min-width: 300px;"></div>
+        <button style="margin-top: 20px; background: var(--primary);" onclick="window.location.href='index.html'">REBOOT SYSTEM</button>
+    </div>
+
+<script>
+    // --- AUDIO SYSTEM ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function sfx(type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        
+        if(type=='hit'){
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.exponentialRampToValueAtTime(0.01, now+0.3);
+            osc.type='sawtooth';
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now+0.3);
+            osc.start(now); osc.stop(now+0.3);
+        } else if(type=='coin'){
+            osc.frequency.setValueAtTime(1200, now);
+            osc.frequency.linearRampToValueAtTime(2000, now+0.1);
+            osc.type='sine';
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now+0.3);
+            osc.start(now); osc.stop(now+0.3);
+        }
+    }
+
+    // --- THE 50 TRIALS ---
+    const questions = [
+        // PROBABILITY & CHANCE (1-20)
+        {c:"Probability", q:"A die is rolled. Probability of getting a 4?", o:["1/6","1/4","1/2","4/6"], a:0},
+        {c:"Probability", q:"A coin is flipped. Probability of tails?", o:["1/2","1/4","1/1","2/3"], a:0},
+        {c:"Probability", q:"A die is rolled. Probability of an even number?", o:["1/2","1/3","1/6","2/3"], a:0},
+        {c:"Probability", q:"A coin is flipped twice. Probability of getting two heads?", o:["1/4","1/2","1/8","3/4"], a:0},
+        {c:"Probability", q:"Bag: 3 red, 2 blue balls. Probability of picking red?", o:["3/5","2/5","1/2","1/5"], a:0},
+        {c:"Probability", q:"Deck of 52 cards. Probability of drawing an ace?", o:["1/13","1/4","1/52","1/2"], a:0},
+        {c:"Probability", q:"Bag: 5g, 3y, 2r. Probability of picking yellow?", o:["3/10","1/3","5/10","2/10"], a:0},
+        {c:"Probability", q:"Probability of rolling > 3 on a die?", o:["1/2","1/3","1/6","2/3"], a:0},
+        {c:"Probability", q:"Two dice are rolled. Probability sum is 7?", o:["1/6","1/12","1/36","1/2"], a:0},
+        // BOSS 1 (Level 10)
+        {c:"AXIAL BOSS", q:"Deck of Cards: Probability it's a Heart?", o:["1/4","1/2","1/13","1/52"], a:0, boss:true}, 
+
+        {c:"Probability", q:"Probability of drawing a King or Queen from a deck?", o:["2/13","1/13","1/26","4/52"], a:0},
+        {c:"Probability", q:"Spinner has 4 equal sections. Probability blue?", o:["1/4","1/2","1/1","25%"], a:0},
+        {c:"Probability", q:"Bag: 6 black, 4 white. Probability picking white?", o:["2/5","1/2","4/6","6/10"], a:0},
+        {c:"Probability", q:"Two coins flipped. Probability of at least one head?", o:["3/4","1/2","1/4","1/1"], a:0},
+        {c:"Probability", q:"Probability of rolling an odd number on a die?", o:["1/2","1/6","1/3","5/6"], a:0},
+        {c:"Probability", q:"Bag: 2r, 3g, 5b. Probability picking red OR blue?", o:["7/10","1/2","2/10","5/10"], a:0},
+        {c:"Probability", q:"Probability of drawing a number card (2–10)?", o:["9/13","1/2","1/4","10/13"], a:0},
+        {c:"Probability", q:"Bag: 5g, 3r. Probability picking NOT green?", o:["3/8","5/8","1/8","1/2"], a:0},
+        {c:"Probability", q:"Coin flipped 3 times. Probability exactly 2 tails?", o:["3/8","1/8","1/2","1/4"], a:0},
+        // BOSS 2 (Level 20)
+        {c:"AXIAL BOSS", q:"Dice rolled twice. Probability of getting doubles?", o:["1/6","1/36","1/12","1/2"], a:0, boss:true},
+
+        // GEOMETRY & SHAPES (21-40)
+        {c:"Geometry", q:"Area of rectangle with length 8 and width 5?", o:["40","13","26","85"], a:0},
+        {c:"Geometry", q:"Perimeter of a square with side 6?", o:["24","36","12","6"], a:0},
+        {c:"Geometry", q:"Area of triangle with base 10 and height 4?", o:["20","40","14","24"], a:0},
+        {c:"Geometry", q:"Circle radius 7. Find area (πr²)?", o:["49π","14π","7π","21π"], a:0},
+        {c:"Geometry", q:"Circle radius 5. Find circumference (2πr)?", o:["10π","25π","5π","20π"], a:0},
+        {c:"Geometry", q:"Triangle sides 3, 4, 5. Is it a right triangle?", o:["Yes","No","Maybe","Only on Tuesdays"], a:0},
+        {c:"Geometry", q:"Perimeter of triangle with sides 6, 7, 8?", o:["21","24","18","30"], a:0},
+        {c:"Geometry", q:"Diagonal of square with side 6?", o:["6√2","12","6","36"], a:0},
+        {c:"Geometry", q:"Volume of cube with side 4?", o:["64","16","12","24"], a:0},
+        // BOSS 3 (Level 30)
+        {c:"AXIAL BOSS", q:"Vol of rect prism: Length 5, Width 3, Height 2?", o:["30","10","25","60"], a:0, boss:true},
+
+        {c:"Geometry", q:"Area of parallelogram: base 10, height 6?", o:["60","30","16","32"], a:0},
+        {c:"Geometry", q:"Area of trapezoid: bases 8 & 12, height 5?", o:["50","100","25","60"], a:0},
+        {c:"Geometry", q:"Sum of interior angles of a hexagon?", o:["720°","360°","540°","180°"], a:0},
+        {c:"Geometry", q:"Each interior angle of regular octagon?", o:["135°","108°","120°","90°"], a:0},
+        {c:"Geometry", q:"Perimeter of rectangle: length 9, width 4?", o:["26","36","13","20"], a:0},
+        {c:"Geometry", q:"Right triangle: side 3, hypotenuse 5. Missing side?", o:["4","2","6","8"], a:0},
+        {c:"Geometry", q:"Area of equilateral triangle with side 6?", o:["9√3","36","18","12"], a:0},
+        {c:"Geometry", q:"Volume of cylinder: radius 3, height 7?", o:["63π","21π","42π","9π"], a:0},
+        {c:"Geometry", q:"Surface area of cube with side 5?", o:["150","125","100","25"], a:0},
+        // BOSS 4 (Level 40)
+        {c:"AXIAL BOSS", q:"Circumference of circle with diameter 10?", o:["10π","20π","5π","100π"], a:0, boss:true},
+
+        // MIXED (41-50)
+        {c:"Mixed", q:"Bag: 3r, 2b, 1g. Probability picking green?", o:["1/6","1/5","1/3","1/2"], a:0},
+        {c:"Mixed", q:"Spinner 5 sections. Probability lands on specific one?", o:["1/5","1/2","20%","5/5"], a:0},
+        {c:"Mixed", q:"Probability rolling number less than 4 on die?", o:["1/2","1/3","1/6","2/3"], a:0},
+        {c:"Mixed", q:"Area of triangle: base 12, height 8?", o:["48","96","20","40"], a:0},
+        {c:"Mixed", q:"Probability of drawing a black card from deck?", o:["1/2","1/4","1/13","1/26"], a:0},
+        {c:"Mixed", q:"Perimeter of rectangle with sides 7 and 10?", o:["34","70","17","40"], a:0},
+        {c:"Mixed", q:"Coin flipped 4 times. Probability all heads?", o:["1/16","1/8","1/4","1/2"], a:0},
+        {c:"Mixed", q:"Volume of cube with side 3?", o:["27","9","18","36"], a:0},
+        {c:"Mixed", q:"Die rolled. Probability NOT rolling 6?", o:["5/6","1/6","1/2","2/3"], a:0},
+        // FINAL BOSS (Level 50)
+        {c:"FINAL BOSS", q:"Diagonal of rectangle with sides 6 and 8?", o:["10","14","48","100"], a:0, boss:true}
+    ];
+
+    // --- ENGINE ---
+    const game = {
+        players: [],
+        turn: 0,
+        level: 0,
+        
+        init: function() {
+            // Load from Index.html
+            const data = localStorage.getItem('mathQuestData');
+            if(!data) { 
+                // Fallback for testing without index.html
+                this.players = [{name:"Test Subject", hp:100, gold:0, shield:false, alive:true}];
+            } else {
+                this.players = JSON.parse(data).players;
+            }
+            this.loadLevel();
+        },
+
+        loadLevel: function() {
+            // Check alive players
+            if(this.players.filter(p=>p.alive).length === 0) {
+                this.gameOver();
+                return;
+            }
+            // Skip dead player turns
+            while(!this.players[this.turn].alive) {
+                this.turn = (this.turn + 1) % this.players.length;
+            }
+
+            if(this.level >= questions.length) {
+                this.gameOver(true); // Victory
+                return;
+            }
+
+            const p = this.players[this.turn];
+            const q = questions[this.level];
+
+            // UI Update
+            document.getElementById('turn-label').innerText = `${p.name}'S TURN`;
+            document.getElementById('p-name').innerText = p.name;
+            document.getElementById('p-hp').innerText = p.hp;
+            document.getElementById('p-gold').innerText = p.gold;
+            document.getElementById('level-num').innerText = this.level + 1;
+            document.getElementById('q-cat').innerText = q.c;
+            
+            // Shield Visual
+            if(p.shield) document.getElementById('p-hp').innerText += " 🛡️";
+
+            // Boss or Minion?
+            const enemy = document.getElementById('enemy-icon');
+            const name = document.getElementById('enemy-name');
+            if(q.boss) {
+                enemy.innerText = "👹";
+                enemy.className = "enemy boss";
+                name.innerText = "AXIAL BOSS";
+                document.body.style.background = "#2a0a0a"; // Red tint
+                document.querySelector('.hud').style.borderBottomColor = "var(--danger)";
+            } else {
+                enemy.innerText = "👾";
+                enemy.className = "enemy";
+                name.innerText = "TRIAL " + (this.level+1);
+                document.body.style.background = "var(--bg)"; // Normal
+                document.querySelector('.hud').style.borderBottomColor = "var(--primary)";
+            }
+
+            // Question
+            document.getElementById('q-text').innerText = q.q;
+            const grid = document.getElementById('options');
+            grid.innerHTML = "";
+            
+            // Shuffle display options
+            let idxs = [0,1,2,3];
+            idxs.sort(() => Math.random() - 0.5);
+            
+            idxs.forEach(i => {
+                const btn = document.createElement('button');
+                btn.innerText = q.o[i];
+                btn.onclick = () => this.answer(i, btn);
+                grid.appendChild(btn);
+            });
+        },
+
+        answer: function(i, btn) {
+            const q = questions[this.level];
+            const p = this.players[this.turn];
+            const isCorrect = (i === q.a);
+            
+            // Disable buttons
+            const all = document.querySelectorAll('.options-grid button');
+            all.forEach(b => b.disabled = true);
+
+            if(isCorrect) {
+                btn.style.background = "var(--success)";
+                btn.style.color = "black";
+                sfx('coin');
+                const reward = q.boss ? 150 : 50;
+                p.gold += reward;
+                
+                // Shake enemy
+                document.getElementById('enemy-icon').classList.add('shake');
+                setTimeout(()=> document.getElementById('enemy-icon').classList.remove('shake'), 400);
+            } else {
+                btn.style.background = "var(--danger)";
+                btn.style.borderColor = "red";
+                sfx('hit');
+                // Damage
+                if(p.shield) {
+                    p.shield = false;
+                } else {
+                    const dmg = q.boss ? 40 : 20; // 40 DMG from BOSS
+                    p.hp -= dmg;
+                    if(p.hp <= 0) { p.hp = 0; p.alive = false; }
+                    // Shake screen
+                    document.body.classList.add('shake');
+                    setTimeout(()=> document.body.classList.remove('shake'), 400);
+                }
+            }
+
+            setTimeout(() => {
+                this.turn = (this.turn + 1) % this.players.length;
+                this.level++;
+                this.loadLevel();
+            }, 1500);
+        },
+
+        toggleShop: function() {
+            const modal = document.getElementById('shop-modal');
+            const p = this.players[this.turn];
+            if(modal.classList.contains('active')) {
+                modal.classList.remove('active');
+            } else {
+                document.getElementById('shop-p-name').innerText = p.name;
+                document.getElementById('shop-p-gold').innerText = p.gold;
+                modal.classList.add('active');
+            }
+        },
+
+        buy: function(item) {
+            const p = this.players[this.turn];
+            if(item == 'heal') {
+                if(p.gold >= 50 && p.hp < 100) {
+                    p.gold -= 50; p.hp = Math.min(100, p.hp+30);
+                    sfx('coin');
+                } else sfx('hit');
+            }
+            if(item == 'shield') {
+                if(p.gold >= 100 && !p.shield) {
+                    p.gold -= 100; p.shield = true;
+                    sfx('coin');
+                } else sfx('hit');
+            }
+            // Update UI
+            document.getElementById('shop-p-gold').innerText = p.gold;
+            document.getElementById('p-hp').innerText = p.hp + (p.shield ? " 🛡️" : "");
+            document.getElementById('p-gold').innerText = p.gold;
+        },
+
+        gameOver: function(victory = false) {
+            const modal = document.getElementById('end-modal');
+            const title = modal.querySelector('h1');
+            modal.classList.add('active');
+            const list = document.getElementById('scores');
+            
+            if(victory) {
+                title.innerText = "MISSION COMPLETE";
+                title.style.color = "var(--success)";
+            } else {
+                title.innerText = "CRITICAL FAILURE";
+                title.style.color = "var(--danger)";
+            }
+            
+            // Sort by gold
+            const sorted = [...this.players].sort((a,b) => b.gold - a.gold);
+            
+            list.innerHTML = sorted.map(p => `
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">
+                    <span style="color:${p.alive?'white':'#666'}">${p.alive?'🏆':'💀'} ${p.name}</span>
+                    <span style="color:var(--gold)">$${p.gold}</span>
+                </div>
+            `).join('');
+        }
+    };
+
+    window.onload = () => game.init();
+</script>
+</body>
+</html>

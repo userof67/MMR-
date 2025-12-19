@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Quest: Launcher</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --primary: #6366f1;
+            --accent: #f43f5e;
+            --text: #f8fafc;
+        }
+
+        * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border: 1px solid #334155;
+        }
+
+        .step { display: none; }
+        .step.active { display: block; }
+
+        input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 1rem;
+            width: 100%;
+            color: white;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+
+        button:hover { filter: brightness(1.1); transform: translateY(-2px); }
+        button.secondary { background: #334155; }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MATH QUEST</h1>
+    
+    <div class="card">
+        <div id="step-1" class="step active">
+            <h2>Select Interface</h2>
+            <div class="btn-grid">
+                <button onclick="nextStep(2)">📱 Mobile</button>
+                <button onclick="nextStep(2)">💻 Desktop</button>
+            </div>
+        </div>
+
+        <div id="step-2" class="step">
+            <h2>How Many Players?</h2>
+            <div class="btn-grid">
+                <button onclick="setPlayers(1)">1 Player</button>
+                <button onclick="setPlayers(2)">2 Players</button>
+                <button onclick="setPlayers(3)">3 Players</button>
+                <button onclick="setPlayers(4)">4 Players</button>
+            </div>
+            <button class="secondary" onclick="prevStep(1)" style="margin-top:20px">Back</button>
+        </div>
+
+        <div id="step-3" class="step">
+            <h2 id="name-title">Player 1 Name</h2>
+            <input type="text" id="name-input" placeholder="Enter Name" maxlength="12">
+            <button onclick="submitName()">Next</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let playerCount = 0;
+    let names = [];
+
+    function nextStep(id) {
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+        document.getElementById('step-' + id).classList.add('active');
+    }
+
+    function prevStep(id) {
+        nextStep(id);
+    }
+
+    function setPlayers(num) {
+        playerCount = num;
+        names = [];
+        nextStep(3);
+        updateNameUI();
+    }
+
+    function updateNameUI() {
+        document.getElementById('name-title').innerText = `Player ${names.length + 1} Name`;
+        document.getElementById('name-input').value = '';
+        document.getElementById('name-input').focus();
+    }
+
+    function submitName() {
+        const input = document.getElementById('name-input');
+        const val = input.value.trim() || `Player ${names.length + 1}`;
+        names.push(val);
+
+        if (names.length < playerCount) {
+            updateNameUI();
+        } else {
+            // ALL DONE - SAVE AND LAUNCH
+            const gameData = {
+                players: names.map(n => ({ name: n, hp: 100, gold: 0, shield: false, alive: true }))
+            };
+            localStorage.setItem('mathQuestData', JSON.stringify(gameData));
+            
+            // Redirect to game file
+            window.location.href = 'game.html';
+        }
+    }
+</script>
+
+</body>
+</html>
